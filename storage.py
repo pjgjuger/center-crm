@@ -59,7 +59,7 @@ class Store:
             old = ref.get(transaction=tx)
             existing_identity = identity_ref.get(transaction=tx)
             previous_source = source_ref.get(transaction=tx) if source_ref else None
-            if previous_source and previous_source.exists:
+            if previous_source and previous_source.exists and not legacy_id:
                 return previous_source.to_dict()["card_id"], False
             if old.exists:
                 return ref.id, False
@@ -75,7 +75,7 @@ class Store:
             tx.create(ref, data)
             if not existing_identity.exists:
                 tx.set(identity_ref, {"card_id": ref.id})
-            if source_ref:
+            if source_ref and (not previous_source.exists or not deleted):
                 tx.set(source_ref, {"card_id": ref.id, "created_at": timestamp()})
             return ref.id, True
         return commit(transaction)

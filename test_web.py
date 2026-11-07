@@ -123,6 +123,13 @@ class DurableWorkflow(unittest.TestCase):
         ident = self.store.put_asset('report.md', raw, 'text/markdown')
         self.assertEqual(fake_store(self.store.client).get_asset(ident)[1], raw)
 
+    def test_migration_preserves_live_and_trashed_versions(self):
+        self.store.create(self.fm, 'deleted history', legacy_id='old', source_id='one', deleted=True)
+        self.store.create(self.fm, 'active history', legacy_id='current', source_id='one')
+        self.assertEqual(self.store.get('old')['body'], 'deleted history')
+        self.assertEqual(self.store.get('current')['body'], 'active history')
+        self.assertEqual(self.store.survey_state()['one']['card_id'], 'current')
+
     def test_unauthenticated_app_stops_before_database(self):
         from streamlit.testing.v1 import AppTest
         with patch('storage.Store') as constructor:
