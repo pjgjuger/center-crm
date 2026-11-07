@@ -112,6 +112,46 @@ def clear_snapshot(ident):
     st.session_state.pop("snapshot_" + ident, None)
 
 
+copy_report_component = st.components.v2.component(
+    "copy_seo_report",
+    html='<button type="button">📋 SEO 보고서 내용 복사</button><p role="status" aria-live="polite"></p><textarea aria-label="복사할 보고서 전체 내용" readonly hidden></textarea>',
+    css="""button{min-height:46px;width:100%;padding:10px 16px;border:0;border-radius:12px;
+    background:#0284c7;color:white;font:inherit;cursor:pointer}p{margin:6px 0;font-size:14px}
+    textarea{box-sizing:border-box;width:100%;height:180px;font:inherit}""",
+    js="""export default function({parentElement,data}) {
+      const button=parentElement.querySelector('button');
+      const status=parentElement.querySelector('[role=status]');
+      const fallback=parentElement.querySelector('textarea');
+      // Report content is data only, never HTML or executable JavaScript.
+      const text=data.text;
+      fallback.value=text;
+      button.onclick=async()=>{
+        try {
+          await navigator.clipboard.writeText(text);
+          status.textContent='복사했습니다. PPT·인포그래픽 제작 요청에 붙여넣으세요.';
+          fallback.hidden=true;
+        } catch (_) {
+          const area=document.createElement('textarea');
+          area.value=text; area.readOnly=true;
+          area.style.cssText='position:fixed;top:0;left:0;opacity:0';
+          document.body.appendChild(area); area.focus(); area.select();
+          area.setSelectionRange(0,area.value.length);
+          let copied=false;
+          try { copied=document.execCommand('copy'); } catch (_) {}
+          area.remove();
+          if(copied) status.textContent='보고서 전체 내용을 복사했습니다.';
+          else {
+            fallback.hidden=false; fallback.focus(); fallback.select();
+            fallback.setSelectionRange(0,text.length);
+            status.textContent='브라우저가 자동 복사를 제한했습니다. 아래 선택된 내용을 길게 눌러 복사해 주세요.';
+          }
+        }
+      };
+      return ()=>{button.onclick=null;};
+    }""",
+)
+
+
 @st.fragment
 def report_viewer(card):
     reports = reports_for_card(card, store.list_assets())
@@ -122,9 +162,11 @@ def report_viewer(card):
                           key="report_choice_" + card['id'])
     try:
         meta, raw = store.get_asset(chosen['id'])
+        text = raw.decode('utf-8-sig')
+        copy_report_component(data={"text": text}, key="copy_report_" + card['id'] + chosen['id'])
         st.download_button("SEO 보고서 MD 내려받기", raw, meta['name'].replace('\\', '/').rsplit('/', 1)[-1],
                            "text/markdown", key="report_download_" + card['id'], on_click="ignore")
-        st.markdown(raw.decode('utf-8-sig'))
+        st.markdown(text)
     except Exception as exc:
         show_error(exc)
 
