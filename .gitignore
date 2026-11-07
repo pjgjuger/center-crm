@@ -1,0 +1,8 @@
+.venv/
+.private/
+.streamlit/secrets.toml
+__pycache__/
+*.pyc
+*.log
+*.json
+*.md.bak
