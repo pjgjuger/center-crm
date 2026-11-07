@@ -1,0 +1,29 @@
+<!doctype html><html lang="ko"><meta charset="utf-8">
+<style>body{font:16px sans-serif;color:#172c43;margin:4px}button,select{min-height:46px;border:1px solid #bbcddd;border-radius:10px;padding:8px;background:white}button{background:#0284c7;color:white;width:100%;margin-top:12px}textarea{box-sizing:border-box;width:100%;height:260px;margin-top:12px}label{display:inline-block;padding:10px 8px}</style>
+<label><input type="checkbox" value="seo" checked> SEO</label>
+<label><input type="checkbox" value="geo"> GEO</label>
+<label><input type="checkbox" value="aeo"> AEO</label>
+<select id="depth" aria-label="보고서 깊이"><option value="quick">간단 진단</option><option value="standard" selected>표준 보고서</option><option value="deep">종합 컨설팅</option></select>
+<button id="generate">수집 자료로 프롬프트 만들기</button>
+<textarea id="output" aria-label="생성한 프롬프트" readonly placeholder="생성하면 이곳에 표시됩니다."></textarea>
+<p id="message" role="status"></p>
+<script src="prompt_forge.js"></script>
+<script>
+let data=null;
+const send=(type,extra={})=>window.parent.postMessage({isStreamlitMessage:true,type,...extra},'*');
+window.addEventListener('message',event=>{
+ if(event.source!==window.parent||event.data.type!=='streamlit:render')return;
+ data=event.data.args.result;
+ send('streamlit:setFrameHeight',{height:440});
+});
+document.getElementById('generate').onclick=()=>{
+ try{
+  const modes=Array.from(document.querySelectorAll('input:checked')).map(x=>x.value);
+  const value=PromptForge.generate(data,{modes,depth:document.getElementById('depth').value}).prompt;
+  document.getElementById('output').value=value;
+  send('streamlit:setComponentValue',{value,dataType:'json'});
+  document.getElementById('message').textContent='아래 저장 버튼으로 보관하거나 프롬프트를 복사해 사용하세요.';
+ }catch(error){document.getElementById('message').textContent='수집 원본 형식을 확인해 주세요.';}
+};
+send('streamlit:componentReady',{apiVersion:1});
+</script></html>
