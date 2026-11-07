@@ -2,7 +2,7 @@ import copy
 import unittest
 from unittest.mock import patch
 
-from service import can_access, sync_surveys
+from service import can_access, reports_for_card, sync_surveys
 from storage import Store, ConflictError
 
 
@@ -126,6 +126,15 @@ class DurableWorkflow(unittest.TestCase):
         raw = ('상담 보고서\n' * 100).encode()
         ident = self.store.put_asset('report.md', raw, 'text/markdown')
         self.assertEqual(fake_store(self.store.client).get_asset(ident)[1], raw)
+
+    def test_report_resolution_current_and_legacy(self):
+        card = {'fm': {'최근보고서ID': 'new'}, 'body': '## SEO 보고서\n보고서: 예전_SEO.md\n[[보고서/더예전.md]]'}
+        assets = [{'id': 'old', 'name': '보고서/예전_SEO.md'},
+                  {'id': 'new', 'name': '최신.md'}, {'id': 'older', 'name': '더예전.md'},
+                  {'id': 'other', 'name': '다른고객.md'}]
+        found = reports_for_card(card, assets)
+        self.assertEqual(found[0]['id'], 'new')
+        self.assertEqual({x['id'] for x in found}, {'new', 'old', 'older'})
 
     def test_migration_preserves_live_and_trashed_versions(self):
         self.store.create(self.fm, 'deleted history', legacy_id='old', source_id='one', deleted=True)

@@ -1,5 +1,6 @@
 import copy
 import json
+import re
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from urllib.parse import quote
@@ -74,3 +75,19 @@ def add_consultation(card, note, how):
 def serialize_card(card):
     order = core.KT_KEYORDER if card.get("kind") == "kt" else core.KEYORDER
     return core.build_card(card["fm"], card["body"], order)
+
+
+def reports_for_card(card, assets):
+    """Resolve both cloud report IDs and legacy Markdown/wiki references."""
+    latest = card['fm'].get('최근보고서ID')
+    references = set()
+    section = core.split_sections(card.get('body', '')).get('SEO 보고서', '')
+    for value in re.findall(r'(?:보고서:\s*|\[\[)([^\n\]|]+?\.md)', section):
+        references.add(value.replace('\\', '/').rsplit('/', 1)[-1].strip())
+    for key in ('SEO보고서', '보고서파일', '최근보고서'):
+        value = card['fm'].get(key, '')
+        if value:
+            references.add(value.replace('\\', '/').rsplit('/', 1)[-1].strip())
+    matches = [a for a in assets if a['id'] == latest or
+               a['name'].replace('\\', '/').rsplit('/', 1)[-1] in references]
+    return sorted(matches, key=lambda a: (a['id'] == latest, a.get('created_at', ''), a['name']), reverse=True)

@@ -10,7 +10,7 @@ import streamlit as st
 
 import legacy_core as core
 import place_lookup
-from service import add_consultation, can_access, load_responses, serialize_card, sync_surveys, today
+from service import add_consultation, can_access, load_responses, reports_for_card, serialize_card, sync_surveys, today
 from storage import ConflictError, Store
 
 
@@ -110,6 +110,23 @@ page = st.radio("메뉴", ["고객", "설문", "KT 가입자", "휴지통", "보
 
 def clear_snapshot(ident):
     st.session_state.pop("snapshot_" + ident, None)
+
+
+@st.fragment
+def report_viewer(card):
+    reports = reports_for_card(card, store.list_assets())
+    if not reports:
+        st.info("연결된 보고서 파일을 찾지 못했습니다. 보관함에서 파일을 확인해 주세요.")
+        return
+    chosen = st.selectbox("열어볼 SEO 보고서", reports, format_func=lambda a: a['name'],
+                          key="report_choice_" + card['id'])
+    try:
+        meta, raw = store.get_asset(chosen['id'])
+        st.download_button("SEO 보고서 MD 내려받기", raw, meta['name'].replace('\\', '/').rsplit('/', 1)[-1],
+                           "text/markdown", key="report_download_" + card['id'], on_click="ignore")
+        st.markdown(raw.decode('utf-8-sig'))
+    except Exception as exc:
+        show_error(exc)
 
 
 def card_editor(ident):
@@ -248,8 +265,11 @@ def card_editor(ident):
         for section in ("플레이스 진단", "플레이스 리뷰", "SEO 보고서"):
             content = core.split_sections(card["body"]).get(section)
             if content:
-                with st.expander(section):
-                    st.markdown(content)
+                with st.expander(section, expanded=section == "SEO 보고서"):
+                    if section == "SEO 보고서":
+                        report_viewer(card)
+                    else:
+                        st.markdown(content)
     with tabs[3]:
         st.write("카드를 휴지통으로 옮기면 설문 자동 등록으로 다시 생성되지 않습니다.")
         confirmed = st.checkbox("「" + fm.get("상호", "") + "」 카드를 휴지통으로 이동합니다.")
