@@ -89,6 +89,10 @@ class DurableWorkflow(unittest.TestCase):
                       {'email_verified': True, 'email': 'stranger@example.com'}):
             self.assertFalse(can_access(value, 'owner@example.com'))
 
+    def test_login_runtime_dependencies(self):
+        from authlib.integrations.starlette_client import OAuth
+        self.assertIsNotNone(OAuth())
+
     def test_restart_dedup_delete_restore(self):
         record = (2, self.fm, 'response1')
         self.assertEqual(sync_surveys(self.store, [record])['added'], 1)
