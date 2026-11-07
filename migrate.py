@@ -12,6 +12,22 @@ from legacy_core import parse_card
 from storage import Store, digest
 
 
+def normalize_fields(fm):
+    """Decode quoted YAML scalar strings retained by the desktop parser."""
+    result = dict(fm)
+    for key, value in fm.items():
+        if len(value) >= 2 and value[0] == value[-1] == '"':
+            try:
+                decoded = json.loads(value)
+                if isinstance(decoded, str):
+                    result[key] = decoded
+            except ValueError:
+                pass
+        elif len(value) >= 2 and value[0] == value[-1] == "'":
+            result[key] = value[1:-1].replace("''", "'")
+    return result
+
+
 def scan(config):
     root = Path(config['vault']).resolve()
     kt = Path(config['kt']).resolve()
@@ -29,6 +45,7 @@ def scan(config):
         # Reports also have YAML headers; only files at a card root/trash count as cards.
         card_parent = path.parent in (root, kt) or (deleted and path.parent.parent.name == '.crm-trash')
         if valid and fm.get('상호') and card_parent:
+            fm = normalize_fields(fm)
             cards.append({'id': 'legacy_' + digest(str(rel)), 'fm': fm, 'body': body,
                           'kind': kind, 'deleted': deleted, 'source': str(rel)})
         else:
